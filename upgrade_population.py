@@ -6,7 +6,9 @@ import deca_tools
 
 def upgrade_population(reserve_name):
     fname = cotw_gameinfo.reserves_population_files[reserve_name]
-    data_bytes = deca_tools.read_file(fname)
+    backup_fname = fname + "_bak"
+    os.rename(fname, backup_fname)
+    data_bytes = deca_tools.read_file(backup_fname)
     data_bytes = bytearray(data_bytes)
 
     # slice data
@@ -61,11 +63,10 @@ def upgrade_population(reserve_name):
                                          new_tr)
         #deca_tools.modify_uint8_data_by_absaddr(decomed_data_bytes, animal.value["IsGreatOne"].data_offset, 1)
 
-    population_file = fname + "_modified"
-    print(f'Saving updated population file: {population_file}')
+    print(f'Saving updated population file: {fname}')
     decomed_data_bytes = decomed_header + decomed_data_bytes
     comed_data_bytes = header + deca_tools.compress(decomed_data_bytes)
-    deca_tools.save_file(population_file, comed_data_bytes)
+    deca_tools.save_file(fname, comed_data_bytes)
 
 
 if __name__ == "__main__":
