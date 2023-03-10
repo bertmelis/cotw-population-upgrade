@@ -30,20 +30,21 @@ def upgrade_population(reserve_name):
     parse_obj = deca_tools.parse_adf(adf_file)
     populations = parse_obj.table_instance_full_values[0].value["Populations"].value
 
+    animal_type = "EU Rabbit"
     animal_index = 0
     for k, v in cotw_gameinfo.animaltypes_per_reserve[reserve_name].items():
-        if v == "EU Rabbit":
+        if v == animal_type:
             animal_index = k
             break
 
     gender = 0
-    while gender != 1:
+    while gender != cotw_gameinfo.gender_that_makes_diamond[animal_type]:
         groups_rabbit = populations[animal_index].value["Groups"].value
         random_group = groups_rabbit[random.randint(0, len(groups_rabbit) - 1)].value["Animals"]
         number_animals_in_group = len(random_group.value)
         random_animal = random_group.value[random.randint(0, number_animals_in_group - 1)]
         gender = random_animal.value["Gender"].value
-        if gender != 1:
+        if gender != cotw_gameinfo.gender_that_makes_diamond[animal_type]:
             continue
         print("This animal will be changed:")
         print("============================")

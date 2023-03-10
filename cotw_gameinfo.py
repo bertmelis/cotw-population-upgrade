@@ -50,6 +50,34 @@ animaltypes_per_reserve = {
   },
 }
 
+# 1: male 2: female
+gender_that_makes_diamond = {
+    "Canada Goose": 1,
+    "EU Rabbit": 1,
+    "Pheasant": 1,
+    "Red Fox": 1,
+    "Roe Deer": 1,
+    "Fallow Deer": 1,
+    "Wild Boar": 1,
+    "Red Deer": 1,
+    "EU Bison": 1,
+    "Mallard": 1,
+    "Merriam Turkey": 1,
+    "Jackrabbit": 1,
+    "Coyote": 1,
+    "Blacktail Deer": 1,
+    "Whitetail Deer": 1,
+    "Black Bear": 1,
+    "Moose": 1,
+    "Roosevelt Elk": 1,
+    "Musk Deer": 1,
+    "Reindeer": 1,
+    "EU Lynx": 1,
+    "Brown Bear": 1,
+    "W Capercaillie": 1,
+    "Grey Wolf": 1,
+}
+
 min_diamond_weight_per_animal = {
     "Canada Goose": 8.5,
     "EU Rabbit": 2.4,
