@@ -7,6 +7,11 @@ import deca_tools
 def upgrade_population(reserve_name):
     fname = cotw_gameinfo.reserves_population_files[reserve_name]
     backup_fname = fname + "_bak"
+    i = 1
+    if os.path.isfile(backup_fname):
+        while os.path.isfile(backup_fname + str(i)):
+           i += 1
+    backup_fname += str(i)
     os.rename(fname, backup_fname)
     data_bytes = deca_tools.read_file(backup_fname)
     data_bytes = bytearray(data_bytes)
