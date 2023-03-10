@@ -1,97 +1,20 @@
 import random
-import zlib
-import struct
-from deca.file import ArchiveFile
-from deca.ff_adf import Adf
+import os
 
+import cotw_gameinfo
+import deca_tools
 
-def read_file(fname):
-    with open(fname, "rb") as file:
-        data = file.read()
-        file.close()
-        return data
-
-
-def save_file(fname, data_bytes):
-    with open(fname, "wb") as file:
-        file.write(data_bytes)
-        file.close()
-
-
-def decompress(data_bytes):
-    decompress = zlib.decompressobj(wbits=-15)
-    decomed = decompress.decompress(data_bytes)
-    decomed = decomed + decompress.flush()
-    return decomed
-
-
-def compress(data_bytes):
-    compress = zlib.compressobj(wbits=-15)
-    comed = compress.compress(data_bytes)
-    comed = comed + compress.flush()
-    return comed
-
-
-def modify_uint8_data_by_absaddr(data_bytes, addr, value):
-    value_byte = value.to_bytes(4, byteorder='little')
-    for i in range(0, len(value_byte)):
-        data_bytes[addr + i] = value_byte[i]
-
-
-def modify_f32_data_by_absaddr(data_bytes, abs_addr, value):
-    hex_float = struct.pack("f", value)
-    for i in range(0, 4):
-        data_bytes[abs_addr + i] = hex_float[i]
-
-
-class FakeVfs:
-    def hash_string_match(self, hash32=None, hash48=None, hash64=None):
-        return []
-
-    def lookup_equipment_from_hash(self, name_hash):
-        return None
-
-
-def parse_adf(adf_flie):
-    obj = Adf()
-    with ArchiveFile(open(adf_flie, 'rb')) as f:
-        obj.deserialize(f)
-    content = obj.dump_to_string(FakeVfs())
-    save_file(adf_flie + ".txt", bytearray(content, 'utf-8'))
-
-    return obj
-
-
-def print_groups(populations):
-    group_size = []
-    group_size_sum = []
-    for i in range(0, len(populations)):
-        groups = populations[i].value["Groups"].value
-        size = []
-        sum = 0
-        for group in groups:
-            group_animals = group.value["Animals"].value
-            size.append(len(group_animals))
-            sum += len(group_animals)
-        size.sort(reverse=True)
-        group_size.append(size)
-        group_size_sum.append(sum)
-
-    for i in range(0, len(group_size_sum)):
-        print("group:" + str(i) + " total animals:" + str(group_size_sum[i]))
-        print(group_size[i])
-
-def modify_population_8():
-    fname = ".\data\\animal_population_8"
-    data_bytes = read_file(fname)
+def upgrade_population(reserve_name):
+    fname = cotw_gameinfo.reserves_population_files[reserve_name]
+    data_bytes = deca_tools.read_file(fname)
     data_bytes = bytearray(data_bytes)
 
     # slice data
-    header = data_bytes[0:34]
-    data_bytes = data_bytes[34:]
+    header = data_bytes[0:32]
+    data_bytes = data_bytes[32:]
 
-    # decode concent
-    decomed_data_bytes = decompress(data_bytes)
+    # decode content
+    decomed_data_bytes = deca_tools.decompress(data_bytes)
     decomed_data_bytes = bytearray(decomed_data_bytes)
 
     # slice data
@@ -99,91 +22,60 @@ def modify_population_8():
     decomed_data_bytes = decomed_data_bytes[5:]
 
     # save adf format data to file
-    adf_flie = fname + "_sliced"
-    save_file(adf_flie, decomed_data_bytes)
+    adf_file = fname + "_sliced"
+    deca_tools.save_file(adf_file, decomed_data_bytes)
 
-    # parse adf file
-    parse_obj = parse_adf(adf_flie)
-
+    parse_obj = deca_tools.parse_adf(adf_file)
     populations = parse_obj.table_instance_full_values[0].value["Populations"].value
 
-    print_groups(populations)
+    animal_index = 0
+    for k, v in cotw_gameinfo.animaltypes_per_reserve[reserve_name].items():
+        if v == "EU Rabbit":
+            animal_index = k
+            break
 
-    groups_reddeer = populations[2].value["Groups"].value
-    for group in groups_reddeer:
-        group_animals = group.value["Animals"].value
-        for animal in group_animals:
-            if animal.value["Gender"].value == 1:
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Weight"].data_offset, random.uniform(241, 260))
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Score"].data_offset, random.uniform(239, 279))
-                modify_uint8_data_by_absaddr(decomed_data_bytes, animal.value["IsGreatOne"].data_offset, 1)
+    gender = 0
+    while gender != 1:
+        groups_rabbit = populations[animal_index].value["Groups"].value
+        random_group = groups_rabbit[random.randint(0, len(groups_rabbit) - 1)].value["Animals"]
+        number_animals_in_group = len(random_group.value)
+        random_animal = random_group.value[random.randint(0, number_animals_in_group - 1)]
+        gender = random_animal.value["Gender"].value
+        if gender != 1:
+            continue
+        print("This animal will be changed:")
+        print("============================")
+        print(random_animal)
+        print("============================")
+        print(f'Old weight: {random_animal.value["Weight"].value}')
+        print(f'Old trophy rating: {random_animal.value["Score"].value}')
+        new_weight = random.uniform(cotw_gameinfo.min_diamond_weight_per_animal["EU Rabbit"], cotw_gameinfo.max_diamond_weight_per_animal["EU Rabbit"])
+        new_tr = random.uniform(cotw_gameinfo.min_diamond_tr_per_animal["EU Rabbit"], cotw_gameinfo.max_diamond_tr_per_animal["EU Rabbit"])
+        print(f'New weight: {new_weight}')
+        print(f'New trophy rating: {new_tr}')
+        deca_tools.modify_f32_data_by_absaddr(decomed_data_bytes,
+                                         random_animal.value["Weight"].data_offset,
+                                         new_weight)
+        deca_tools.modify_f32_data_by_absaddr(decomed_data_bytes,
+                                         random_animal.value["Score"].data_offset,
+                                         new_tr)
+        #deca_tools.modify_uint8_data_by_absaddr(decomed_data_bytes, animal.value["IsGreatOne"].data_offset, 1)
 
-    # generate population file
+    population_file = fname + "_modified"
+    print(f'Saving updated population file: {population_file}')
     decomed_data_bytes = decomed_header + decomed_data_bytes
-    comed_data_bytes = header + compress(decomed_data_bytes)
-
-    pupolation_file = fname + "_modified"
-    save_file(pupolation_file, comed_data_bytes)
+    comed_data_bytes = header + deca_tools.compress(decomed_data_bytes)
+    deca_tools.save_file(population_file, comed_data_bytes)
 
 
-def modify_population_12():
-    fname = ".\data\\animal_population_12"
-    data_bytes = read_file(fname)
-    data_bytes = bytearray(data_bytes)
-
-    # slice data
-    header = data_bytes[0:34]
-    data_bytes = data_bytes[34:]
-
-    # decode concent
-    decomed_data_bytes = decompress(data_bytes)
-    decomed_data_bytes = bytearray(decomed_data_bytes)
-
-    # slice data
-    decomed_header = decomed_data_bytes[0:5]
-    decomed_data_bytes = decomed_data_bytes[5:]
-
-    # save adf format data to file
-    adf_flie = fname + "_sliced"
-    save_file(adf_flie, decomed_data_bytes)
-
-    # parse adf file
-    parse_obj = parse_adf(adf_flie)
-
-    populations = parse_obj.table_instance_full_values[0].value["Populations"].value
-
-    print_groups(populations)
-
-    groups_white = populations[8].value["Groups"].value
-    for group in groups_white:
-        group_animals = group.value["Animals"].value
-        for animal in group_animals:
-            if animal.value["Gender"].value == 1:
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Weight"].data_offset,
-                                           random.uniform(101, 110))
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Score"].data_offset,
-                                           random.uniform(300, 643))
-                modify_uint8_data_by_absaddr(decomed_data_bytes, animal.value["IsGreatOne"].data_offset, 1)
-
-    groups_black_bear = populations[7].value["Groups"].value
-    for group in groups_black_bear:
-        group_animals = group.value["Animals"].value
-        for animal in group_animals:
-            if animal.value["Gender"].value == 1:
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Weight"].data_offset,
-                                           random.uniform(291, 490))
-                modify_f32_data_by_absaddr(decomed_data_bytes, animal.value["Score"].data_offset,
-                                           random.uniform(24, 28))
-                modify_uint8_data_by_absaddr(decomed_data_bytes, animal.value["IsGreatOne"].data_offset, 1)
-
-    # generate population file
-    decomed_data_bytes = decomed_header + decomed_data_bytes
-    comed_data_bytes = header + compress(decomed_data_bytes)
-
-    pupolation_file = fname + "_modified"
-    save_file(pupolation_file, comed_data_bytes)
-
-
-if __name__ == '__main__':
-    modify_population_12()
-    modify_population_8()
+if __name__ == "__main__":
+    for reserve in cotw_gameinfo.reserves_population_files:
+        if (not os.path.isfile(cotw_gameinfo.reserves_population_files[reserve])):
+            continue
+        filestats =  os.stat(cotw_gameinfo.reserves_population_files[reserve])
+        if (filestats.st_size < 1024):
+            continue
+        if reserve in cotw_gameinfo.animaltypes_per_reserve:
+            print(f'--- {reserve} ---')
+            upgrade_population(reserve)
+        break
