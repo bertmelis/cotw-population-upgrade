@@ -1,1 +1,0 @@
-Module['adf_stack'] = [];

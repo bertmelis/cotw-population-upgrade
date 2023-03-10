@@ -1,7 +1,8 @@
-import struct
 import datetime
 import os
+import struct
 import weakref
+import sys
 
 
 class Logger:
@@ -65,20 +66,20 @@ class DecaSignal:
             self.callbacks.remove(i)
 
 
-def dump_line(line, width, format='hex'):
-    if format is 'hex' or len(line) != width:
+def dump_line(line, width, fmt='hex'):
+    if fmt == 'hex' or len(line) != width:
         line = ''.join(['{:02x}'.format(v) for v in bytearray(line)])
-    elif format is 'char' :
+    elif fmt == 'char':
         line = ['{}'.format(chr(v)) for v in bytearray(line)]
     else:
-        line = struct.unpack(format, line)
+        line = struct.unpack(fmt, line)
     return '{}'.format(line)
 
 
-def dump_block(blk, width, format='hex'):
+def dump_block(blk, width, fmt='hex'):
     for i in range((len(blk) + width - 1) // width):
-        line = blk[(i*width):((i+1)*width)]
-        line = dump_line(line, width, format)
+        line = blk[(i * width):((i + 1) * width)]
+        line = dump_line(line, width, fmt)
         print(line)
 
 
@@ -118,4 +119,23 @@ def to_unicode(s):
         s = s.decode('utf-8')
 
     return s
+
+
+def deca_root():
+    frozen = getattr(sys, 'frozen', False)
+    if frozen and hasattr(sys, '_MEIPASS'):
+        # print('running in a PyInstaller bundle')
+        bundle_dir = sys._MEIPASS
+    else:
+        # print('running in a normal Python process')
+        bundle_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
+    # print(f"{__file__=}")
+    # print(f"{bundle_dir=}")
+    # print(f"{sys.argv[0]=}")
+    # print(f"{sys.executable=}")
+    # print(f"{os.getcwd()=}")
+    # print(f"{frozen=}")
+
+    return bundle_dir
 

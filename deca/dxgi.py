@@ -137,12 +137,63 @@ def process_image_41(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R32_FLOAT
 
 
 @njit
-def process_image_60(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R8_TYPELESS
+def process_image_53(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R16_ u16
+    pos = 0
+    chans = [0] * 1
+    for yi in range(ny):
+        for xi in range(nx):
+            chans[0], pos = ff_read_u16(buffer, n_buffer, pos)
+            image[yi, xi, 0] = chans[0]
+            image[yi, xi, 1] = 0
+            image[yi, xi, 2] = 0
+            image[yi, xi, 3] = 0
+
+
+@njit
+def process_image_54(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R16_FLOAT
+    pos = 0
+    chans = [0] * 1
+    for yi in range(ny):
+        for xi in range(nx):
+            chans[0], pos = ff_read_u16(buffer, n_buffer, pos)
+            image[yi, xi, 0] = u16_to_f16_in_f32(chans[0])
+            image[yi, xi, 1] = 0
+            image[yi, xi, 2] = 0
+            image[yi, xi, 3] = 0
+
+@njit
+def process_image_58(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R16_ s16
+    pos = 0
+    chans = [0] * 1
+    for yi in range(ny):
+        for xi in range(nx):
+            chans[0], pos = ff_read_s16(buffer, n_buffer, pos)
+            image[yi, xi, 0] = chans[0]
+            image[yi, xi, 1] = 0
+            image[yi, xi, 2] = 0
+            image[yi, xi, 3] = 0
+
+
+@njit
+def process_image_60(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R8_ u8
     pos = 0
     chans = [0] * 1
     for yi in range(ny):
         for xi in range(nx):
             chans[0], pos = ff_read_u8(buffer, n_buffer, pos)
+            image[yi, xi, 0] = chans[0]
+            image[yi, xi, 1] = 0
+            image[yi, xi, 2] = 0
+            image[yi, xi, 3] = 0
+
+
+@njit
+def process_image_63(image, buffer, n_buffer, nx, ny):  # DXGI_FORMAT_R8_ s8
+    pos = 0
+    chans = [0] * 1
+    for yi in range(ny):
+        for xi in range(nx):
+            chans[0], pos = ff_read_s8(buffer, n_buffer, pos)
             image[yi, xi, 0] = chans[0]
             image[yi, xi, 1] = 0
             image[yi, xi, 2] = 0
@@ -482,7 +533,11 @@ def process_image_python(image, raw, nx, ny, pixel_format):
         26: process_image_26,  # DXGI_FORMAT_R11G11B10_FLOAT
         28: process_image_28,  # DXGI_FORMAT_R8G8B8A8_UNORM
         41: process_image_41,  # DXGI_FORMAT_R32_FLOAT
-        60: process_image_60,  # DXGI_FORMAT_R8_TYPELESS
+        53: process_image_53,  # DXGI_FORMAT_R16_TYPELESS u16
+        54: process_image_54,  # DXGI_FORMAT_R16_FLOAT f16
+        58: process_image_58,  # DXGI_FORMAT_R16_SNORM s16
+        60: process_image_60,  # DXGI_FORMAT_R8_TYPELESS u8
+        63: process_image_63,  # DXGI_FORMAT_R8_TYPELESS s8
         70: process_image_70,  # DXGI_FORMAT_BC1_TYPELESS
         73: process_image_73,  # DXGI_FORMAT_BC2_TYPELESS
         76: process_image_76,  # DXGI_FORMAT_BC3_TYPELESS
@@ -529,25 +584,32 @@ def process_image(*args, **kwargs):
     if process_image_func is None:
         c_process_image_lib = None
         exe_path, exe_name = os.path.split(sys.argv[0])
-        if len(exe_path) == 0:
-            exe_path = '.'
+        lib_path = os.path.join("./", exe_path, "..", "..", "..", "root", "lib")
 
         # process_image_func = setup_image_wasm
 
         if process_image_func is None:
-            if os.path.isfile('process_image.dll'):
-                # "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
-                # "cl.exe /D_USRDLL /D_WINDLL deca/process_image.c /link /DLL /OUT:process_image.dll"
-                c_process_image_lib = ctypes.WinDLL('process_image.dll')
-            elif os.path.isfile(os.path.join(exe_path, 'process_image.so')):
-                # gcc -fPIC -shared -O3 deca/process_image.c -o process_image.so
-                c_process_image_lib = ctypes.CDLL(os.path.join(exe_path, 'process_image.so'))
-            elif os.path.isfile('process_image.so'):
-                # gcc -fPIC -shared -O3 deca/process_image.c -o process_image.so
-                c_process_image_lib = ctypes.CDLL('process_image.so')
+            # "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+            # "cl.exe /D_USRDLL /D_WINDLL deca/process_image.c /link /DLL /OUT:process_image.dll"
+
+            # gcc -fPIC -shared -O3 deca/process_image.c -o process_image.so
+            paths = [
+                "process_image.dll",
+                os.path.join(lib_path, "process_image.dll"),
+                "process_image.so",
+                os.path.join(lib_path, "process_image.so"),
+            ]
+
+            for path in paths:
+                if os.path.isfile(path):
+                    print(f"Using C version of process_image from {path}")
+                    if os.path.splitext(path)[1].lower() == ".dll":
+                        c_process_image_lib = ctypes.WinDLL(path)
+                    else:
+                        c_process_image_lib = ctypes.CDLL(path)
+                    break
 
             if c_process_image_lib is not None:
-                print('Using C version of process_image')
                 prototype = ctypes.CFUNCTYPE(
                     ctypes.c_int,
                     ctypes.POINTER(ctypes.c_uint8),
@@ -569,6 +631,7 @@ def process_image(*args, **kwargs):
                 c_process_image_func = prototype(("process_image", c_process_image_lib), paramflags)
                 process_image_func = process_image_c
             else:
+                print('Using Python version of process_image')
                 process_image_func = process_image_python
 
     process_image_func(*args, **kwargs)

@@ -3,7 +3,7 @@ import re
 from .errors import *
 from .file import *
 from .ff_types import *
-from .ff_adf import AdfDatabase, AdfTypeMissing
+from .ff_adf import AdfDatabase, EDecaMissingAdfType
 from .db_core import VfsDatabase, VfsNode
 from .db_view import VfsView
 from .ff_avtx import image_export
@@ -144,7 +144,7 @@ def nodes_export_gltf(
             node = vfs_view.node_where_uid(uid)
             if node.is_valid() and node.offset is not None:
                 try:
-                    if node.file_type in {FTYPE_ADF, FTYPE_ADF_BARE, FTYPE_ADF0}:
+                    if node.file_type in ftype_adf_family:
                         vs_adf.append(node)
                     elif node.file_type in {FTYPE_RTPC}:
                         vs_rtpc.append(node)
@@ -173,7 +173,7 @@ def nodes_export_gltf(
         except EDecaFileExists as e:
             vfs.logger.log(
                 'WARNING: Extracting {} Failed: overwrite disabled and {} exists, skipping'.format(node.v_path, e.args[0]))
-        except AdfTypeMissing as e:
+        except EDecaMissingAdfType as e:
             vfs.logger.log(
                 'ERROR: Extracting {} Failed: Missing ADF Type 0x{:08x}  '.format(node.v_path, e.type_id))
         except EDecaFileMissing as e:
@@ -215,7 +215,7 @@ def nodes_export_processed(
             node = nodes[0]
             if node.is_valid() and node.offset is not None:
                 try:
-                    if node.file_type in {FTYPE_ADF, FTYPE_ADF0, FTYPE_ADF_BARE}:
+                    if node.file_type in ftype_adf_family:
                         # handle the case for GenZero where ADF files can be in the
                         nodes_adf = []
                         nodes_adfb = []
@@ -236,6 +236,8 @@ def nodes_export_processed(
                         vs_images.append(node)
                     elif node.file_type in {FTYPE_FSB5C}:
                         vs_fsb5cs.append(node)
+                    elif isinstance(node.v_path, bytes) and (node.v_path.endswith(b'.csvc') or node.v_path.endswith(b'.bmpc')):
+                        vs_rename.append(node)
                     else:
                         vs_other.append(node)
 
@@ -268,7 +270,7 @@ def nodes_export_processed(
             except EDecaFileExists as e:
                 vfs.logger.log(
                     'WARNING: Extraction failed overwrite disabled and {} exists, skipping'.format(e.args[0]))
-            except AdfTypeMissing as e:
+            except EDecaMissingAdfType as e:
                 vfs.logger.log(
                     'WARNING: Extracting {} Failed: Missing ADF Type 0x{:08x}  '.format(node.v_path, e.type_id))
 
@@ -278,7 +280,7 @@ def nodes_export_processed(
             except EDecaFileExists as e:
                 vfs.logger.log(
                     'WARNING: Extraction failed overwrite disabled and {} exists, skipping'.format(e.args[0]))
-            except AdfTypeMissing as e:
+            except EDecaMissingAdfType as e:
                 vfs.logger.log(
                     'WARNING: Extracting {} Failed: Missing ADF Type 0x{:08x}  '.format(node.v_path, e.type_id))
 

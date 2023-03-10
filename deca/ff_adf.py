@@ -8,7 +8,7 @@ from deca.errors import *
 from deca.file import ArchiveFile
 from deca.fast_file import *
 from deca.hashes import hash32_func
-from deca.ff_types import FTYPE_ADF_BARE, FTYPE_ADF0
+from deca.ff_types import FTYPE_ADF_BARE, FTYPE_ADF0, FTYPE_ADF5
 from deca.db_core import VfsDatabase, VfsNode
 
 # https://github.com/tim42/gibbed-justcause3-tools-fork/blob/master/Gibbed.JustCause3.FileFormats/AdfFile.cs
@@ -22,12 +22,6 @@ adf_hash_fields = {
     'Character', 'SkinTone', 'Stereotype',
     'LocationId',
 }
-
-
-class AdfTypeMissing(Exception):
-    def __init__(self, type_id, *args, **kwargs):
-        Exception.__init__(self, *args)
-        self.type_id = type_id
 
 
 class GdcArchiveEntry:
@@ -212,7 +206,7 @@ class InstanceEntry:
 
     # def read(self, type_systems, f):
     #     if self.type_hash not in type_systems:
-    #         raise AdfTypeMissing(self.type_hash)
+    #         raise EDecaMissingAdfType(self.type_hash)
     #     td = type_systems[self.type_hash]
     #     f.seek(self.offset)
     #     v = td.read(type_systems, f)
@@ -267,7 +261,7 @@ def dump_type(type_id, type_map, offset=0, displayed_types=None):
 
     if type_id not in type_map:
         return '{}UNKNOWN TYPE: {:08x}\n'.format(' ' * offset, type_id)
-        # raise AdfTypeMissing(type_id)
+        # raise EDecaMissingAdfType(type_id)
     type_def = type_map[type_id]
 
     space = ' ' * offset
@@ -576,7 +570,7 @@ def read_instance(
                 v, buffer_pos = read_instance(
                     buffer, n_buffer, buffer_pos, v0[2], map_typedef, map_string_hash, abs_offset,
                     found_strings=found_strings)
-            except AdfTypeMissing as e:
+            except EDecaMissingAdfType as e:
                 v = f"!!!MISSING TYPE:  0x{e.type_id:08x} in 0x{v0[2]:08x}[{v0[1]}]"
             buffer_pos = opos
             v = AdfValue(v, type_id, dpos + abs_offset, v0[0] + abs_offset)
@@ -652,11 +646,11 @@ def read_instance(
 
     else:
         if type_id not in map_typedef:
-            raise AdfTypeMissing(type_id)
+            raise EDecaMissingAdfType(type_id)
         type_def = map_typedef[type_id]
 
         if type_def.metatype == 0:  # Primative
-            raise AdfTypeMissing(type_id)
+            raise EDecaMissingAdfType(type_id)
         elif type_def.metatype == 1:  # Structure
             v = {}
             p0 = buffer_pos
@@ -677,7 +671,7 @@ def read_instance(
             v0, buffer_pos = ff_read_u64(buffer, n_buffer, buffer_pos)
             v = (v0, 'NOTE: {}: {:016x} to {:08x}'.format(type_def.name, v0, type_def.element_type_hash))
             # TODO not sure how this is used yet, but it's used by effects so lower priority
-            # raise AdfTypeMissing(type_id)
+            # raise EDecaMissingAdfType(type_id)
         elif type_def.metatype in {3, 4}:  # Array or Inline Array
             if type_def.metatype == 3:
                 v0, buffer_pos = ff_read_u32s(buffer, n_buffer, buffer_pos, 3)
@@ -846,7 +840,6 @@ class Adf:
         sbuf = sbuf + '{}: {}\n'.format('nametable_count', self.nametable_count)
         sbuf = sbuf + '{}: {}\n'.format('nametable_offset', self.nametable_offset)
         sbuf = sbuf + '{}: {}\n'.format('total_size', self.total_size)
-
         for i in range(len(self.unknown)):
             sbuf = sbuf + 'Unknown[{0}]: {1} 0x{1:08x}\n'.format(i, self.unknown[i])
 
@@ -887,6 +880,7 @@ class Adf:
 
             # sbuf = sbuf + pformat(v, width=1024) + '\n'
             sbuf = sbuf + adf_format(fv, vfs, self.extended_map_typedef) + '\n'
+
         return sbuf
 
     def deserialize(self, fp, map_typedef=None, process_instances=True):
@@ -981,7 +975,7 @@ class Adf:
                     found_strings=self.found_strings)
                 self.table_instance_full_values[i] = v
                 self.table_instance_values[i] = adf_value_extract(v)
-                # except AdfTypeMissing as ae:
+                # except EDecaMissingAdfType as ae:
                 #     print('Missing HASHID {:08x}'.format(ae.hashid))
                 # except Exception as exp:
                 #     print(exp)
@@ -1033,7 +1027,7 @@ class AdfDatabase:
                     adf = Adf()
                     adf.deserialize(f, map_typedef=self.type_map_def)
 
-                except AdfTypeMissing as ae:
+                except EDecaMissingAdfType as ae:
                     self.type_missing.add((ae.type_id, node_uid))
                     self._type_map_updated = True
 
@@ -1062,7 +1056,7 @@ class AdfDatabase:
 
     def _load_adf_bare(self, buffer, adf_type, offset, size):
         if adf_type not in self.type_map_def:
-            raise AdfTypeMissing(adf_type)
+            raise EDecaMissingAdfType(adf_type)
 
         try:
             obj = Adf()
@@ -1114,9 +1108,12 @@ class AdfDatabase:
                     adf_type = node.file_sub_type
                 skip = 8  # skip magic and type id
                 adf = self._load_adf_bare(buffer[skip:], adf_type, 0, node.size_u - skip)
+            elif node.file_type == FTYPE_ADF5:
+                skip = 5
+                adf = self._load_adf(buffer[skip:])
             else:
                 adf = self._load_adf(buffer)
-        except AdfTypeMissing as ae:
+        except EDecaMissingAdfType as ae:
             self.type_missing.add((ae.type_id, node.uid))
             self._type_map_updated = True
             raise
