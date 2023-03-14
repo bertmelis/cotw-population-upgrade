@@ -213,3 +213,29 @@ max_go_tr_per_animal = {
     "Black Bear": 28,
     "Moose": 320,
 }
+
+# Red Deer only has one fur type for GOs, so not included in this list
+furtype_per_go = {
+  "Moose": {
+    "brown": 1123737993,
+    "light_brown": 3360743299,
+    "tan": 1620419525,
+    "fabled_two_tone": 2834255352,
+    "fabled_birch": 4184913762,
+    "fabled_oak": 868192954,
+    "fabled_speckled": 2725877565,
+    "fabled_spruce": 2099598749,
+    "fabled_ashen": 3430844549,
+  },
+  "Whitetail Deer": {
+    "brown": 3758024868,
+    "dark brown": 3643313656,
+    "tan": 203506860,
+  },
+  "Black Bear": {
+    "fabled_glacier": 2742609257,
+    "fabled_chesnut": 3087602548,
+    "fabled_cream": 3631307431,
+    "fabled_spotted": 1868463965,
+  },
+}
