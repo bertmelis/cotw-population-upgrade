@@ -239,3 +239,10 @@ furtype_per_go = {
     "fabled_spotted": 1868463965,
   },
 }
+
+whitetail_level1 = {
+    "min_weight": 65.5,
+    "max_weight": 72,
+    "min_tr": 100,
+    "max_tr": 142
+}
