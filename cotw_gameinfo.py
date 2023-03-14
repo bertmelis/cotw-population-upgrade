@@ -215,11 +215,12 @@ max_go_tr_per_animal = {
 }
 
 # Red Deer only has one fur type for GOs, so not included in this list
+# since 14/03/2023 update, Moose will only spawn with GO furtypes
 furtype_per_go = {
   "Moose": {
-    "brown": 1123737993,
-    "light_brown": 3360743299,
-    "tan": 1620419525,
+    #"brown": 1123737993,
+    #"light_brown": 3360743299,
+    #"tan": 1620419525,
     "fabled_two_tone": 2834255352,
     "fabled_birch": 4184913762,
     "fabled_oak": 868192954,
