@@ -24,6 +24,5 @@ I tested using VSCode on Windows 11. your mileage may vary should you try a diff
 ## Status
 
 This project is far from finished. Currently, it is more a proof of concept than a working script.
-The script now just changes one of your European Rabbits on Hirschfelden into a diamon level.
 
 [^1]: There are different levels of cheating in theHunter Call of the Wild. You have the animal population scanner which is cheating at a low level. Modifying your population file certainly is mid-level. Using [this](http://mathartbang.com/deca/hp/map.html?r=r0) is taking away the fun, unless you're grinding for a diamond scrub hare.
